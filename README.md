@@ -18,7 +18,7 @@ Struckthrough things are done.
 - Make sure it's turing complete
 - Object orientation
 - Draw sprites in code, built in game engine
-- Make it easy to save and share drawings
+- ~~Make it easy to save and share drawings~~
 - ???
 - Profit
 
