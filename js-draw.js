@@ -3,10 +3,15 @@
 // Code elements.
 {
   // Variable type can hold a list of variables, or a value.
-  var Variable = function(region) {
+  var Variable = function(region, parent) {
     this.region = region;
+    this.mother = parent;
     this.variables = [];
+    this.froms = [];
+    this.tos = [];
+    this.last_to = -1;
     this.is_atomic = true;
+    this.name = IntToWord(region);
   };
   Variable.prototype.AddVariable = function(region_idx) {
     this.is_atomic = false;
@@ -16,18 +21,75 @@
     this.is_atomic = true;
     this.value = value;
   };
-  
+  Variable.prototype.AddFrom = function(from, link_bounds) {
+    this.froms.push({node: from, bounds: link_bounds});
+  };
+  Variable.prototype.AddTo = function(to) {
+    var last_to_flag = false;
+    for (var i = 0; i != this.froms.length; i++) {
+      if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
+        last_to_flag = true;
+        break;
+      }
+    }
+    if (last_to_flag) {
+      this.last_to = to;
+    } else {
+      this.tos.push(to);
+    }
+  };
+
   // Scope type can have sub scopes and variables.
-  var Scope = function(region) {
+  var Scope = function(region, parent) {
     this.region = region;
+    this.mother = parent;
     this.sub_scopes = [];
     this.variables = [];
+    this.froms = [];
+    this.tos = [];
+    // Returns or follow-throughs.
+    this.last_tos = [];
+    this.start = -1;
+    this.name = IntToWord(region);
   };
   Scope.prototype.AddVariable = function(region_idx) {
     this.variables.push(region_idx);
   };
   Scope.prototype.AddSubScope = function(region_idx) {
     this.sub_scopes.push(region_idx);
+  };
+  Scope.prototype.AddFrom = function(from, link_bounds) {
+    this.froms.push({node: from, bounds: link_bounds});
+  };
+  Scope.prototype.AddTo = function(to) {
+    var start_flag = false;
+    for (var i = 0; i != this.sub_scopes.length; i++) {
+      if (to == this.sub_scopes[i]) {
+        start_flag = true;
+        this.start = this.sub_scopes[i];
+      }
+    }
+    if (start_flag) return;
+    for (var i = 0; i != this.variables.length; i++) {
+      if (to == this.variables[i]) {
+        start_flag = true;
+        this.start = this.variables[i];
+      }
+    }
+    if (start_flag) return;
+    
+    var last_to_flag = false;
+    for (var i = 0; i != this.froms.length; i++) {
+      if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
+        last_to_flag = true;
+        break;
+      }
+    }
+    if (last_to_flag) {
+      this.last_tos.push(to);
+    } else {
+      this.tos.push(to);
+    }
   };
 }
 
@@ -61,83 +123,87 @@
     }
   }
   region_map[0] = new Scope(0);
+  
+  var untied_flows = [];
+  
+  var lines = [];
+}
+
+// Code element creators
+function MakeFunctions() {
+  var functions = {};
+  for (var i = 0; i != region_count; i++) {
+    if (region_map[i] instanceof Scope && region_map[i].start != -1) {
+      var signature = "function " + region_map[i].name + "(";
+      var args = [];
+      for (var j = 0; j != region_map[i].froms.length; j++) {
+        if (region_map[i].froms[j].node instanceof Variable) {
+          args.push(region_map[i].froms[j].node);
+          for (var k = 0; k != args.length; k++) {
+            signature += "b";
+          }
+          signature += ", ";
+        }
+      }
+      if (args.length > 0) signature = signature.substring(0, signature.length-2);
+      signature += ") {";
+
+      var node = region_map[i].start;
+      ComputeFunctionBody(node);
+      
+      console.log(signature);
+    }
+  }
+}
+
+function ComputeFunctionBody(node) {
+  var body = "";
+  
+  var linked_vars = [];
+  linked_vars.push(node);
+  FollowNodes(node.last_to, linked_vars);
+  
+  var unlinked_vars = [];
+  for (var i = 0; i != region_count; i++) {
+    if (region_map[i] instanceof Variable)
+      if (region_map[i].mother == node.mother)
+        if (!Contains(linked_vars, region_map[i]))
+          unlinked_vars.push(region_map[i]);
+  }
+  
+  for (var i = 0; i != unlinked_vars.length; i++) {
+    body += ComputeVariableDecl(unlinked_vars[i]);
+  }
+  
+  return body;
+}
+
+function FollowNodes(node, linked_vars) {
+  linked_vars.push(node);
+  if (node.last_to == -1) return;
+  FollowNodes(node.last_to, linked_vars);
+}
+
+function ComputeVariableDecl(variable) {
+  var decl = "var " + variable.name + " = " + variable.value + ";\n";
+  return decl;
 }
 
 // Different colors for different code elements.
 {
   var selected_stroke;
   var strokes = {};
+  var strokes2 = {};
   strokes["Scope"] = "#000000";
   strokes["Flow"] = "#FF0000";
   strokes["Variable"] = "#00FF00";
   strokes["Arse"] = "#0000FF";
   strokes["Comments"] = "#FFFF00";
-}
-
-// Adds stroke style buttons and draws them.
-var buttons = {};
-{
-  // Call it a buffon to avoid any ambiguity with existing JS button stuff.
-  class Buffon {
-    constructor(x, y, text, back_color, text_color, font) {
-      this.rect = {x: x, y: y, w: context.measureText(text).width, h: 20};
-      this.text = text;
-      this.back_color = back_color;
-      this.text_color = text_color;
-      this.font = font;
-      this.text_x = (this.rect.w - context.measureText(text).width) / 2;
-      this.offset = {x: 0, y: 0};
-    }
-    
-    draw() {
-      context.font = this.font;
-      context.fillStyle = this.back_color;
-      this.rect.w = context.measureText(this.text).width + 8;
-      context.fillRect(this.rect.x + this.offset.x, this.rect.y + this.offset.y, 
-                       this.rect.w, this.rect.h);
-      context.fillStyle = this.text_color;
-      context.fillText(this.text, this.text_x + 4 + this.offset.x,
-                       this.rect.y + 14 + this.offset.y);
-    }
-    
-    highlight() {
-      if (MouseIntersectsRect(this.rect)) {
-        context.beginPath();
-        context.lineWidth = "2";
-        context.strokeStyle = "#FFFFFF";
-        context.rect(this.rect.x, this.rect.y+1, this.rect.w-1, this.rect.h-2);
-        context.stroke();
-        return true;
-      } else {
-        this.draw();
-        return false;
-      }
-    }
-    
-    select() {
-      if (MouseIntersectsRect(this.rect)) {
-        return true;
-      } else {
-        return false;
-      }
-    }
-  }
-  
-  buttons["Scope"] = new Buffon(
-    0, 0, "Scope", strokes["Scope"], "#FFFFFF", "12px Arial");
-  buttons["Flow"] = new Buffon(
-    0, 25, "Flow", strokes["Flow"], "#FFFFFF", "12px Arial");
-  buttons["Variable"] = new Buffon(
-    0, 50, "Variable", strokes["Variable"], "#000000", "12px Arial");
-  buttons["Arse"] = new Buffon(
-    0, 75, "Arse", strokes["Arse"], "#FFFFFF", "12px Arial");
-  buttons["Comments"] = new Buffon(
-    0, 100, "Comments", strokes["Comments"], "#000000", "12px Arial");
-  for (var key in buttons) {
-    if (buttons.hasOwnProperty(key)) {
-      buttons[key].draw();
-    }
-  }
+  strokes2["Scope"] = {r: 0, g: 0, b: 0, a: 255};
+  strokes2["Flow"] = {r: 255, g: 0, b: 0, a: 255};
+  strokes2["Variable"] = {r: 0, g: 255, b: 0, a: 255};
+  strokes2["Arse"] = {r: 0, g: 0, b: 255, a: 255};
+  strokes2["Comments"] = {r: 255, g: 255, b: 0, a: 255};
 }
 
 // Color helper functions.
@@ -158,31 +224,69 @@ function EqualsColor(a, b) {
 }
 
 // Misc helper functions.
-function MouseIntersectsRect(rect) {
-  if (mouse.x > rect.x && mouse.x < rect.x + rect.w &&
-      mouse.y > rect.y && mouse.y < rect.y + rect.h) {
+function IntersectsRect(point, rect) {
+  if (point.x > rect.x && point.x < rect.x + rect.w &&
+      point.y > rect.y && point.y < rect.y + rect.h) {
     return true;      
   }
   return false;
 }
-
-// Either clicks on buttons or sets up line drawing.
-var button_clicked = false;
-canvas.addEventListener('mousedown', function(e) {
-  for (var key in buttons) {
-    if (buttons.hasOwnProperty(key)) {
-      if (buttons[key].select()) {
-        selected_stroke = key;
-        console.log(key);
-        button_clicked = true;
-        return;
-      }
+function IntToWord(int) {
+  var word = "";
+  var digits = (""+int).split("");
+  for (var i = 0; i != digits.length; i++) {
+    switch (digits[i]) {
+      case "0": word += "zero"; break; case "1": word += "one"; break;
+      case "2": word += "two"; break; case "3": word += "three"; break;
+      case "4": word += "four"; break; case "5": word += "five"; break;
+      case "6": word += "six"; break; case "7": word += "seven"; break;
+      case "8": word += "eight"; break; case "9": word += "nine"; break;
+    }  
+  }
+  return word;
+}
+function Contains(a, obj) {
+    for (var i = 0; i < a.length; i++) {
+        if (a[i] === obj) {
+            return true;
+        }
+    }
+    return false;
+}
+function Save() {
+  var save = "";
+  for (var i = 0; i != lines.length; i++) {
+    save += lines[i].x0 + "," + lines[i].y0 + "," + lines[i].x1 + ","; 
+    save += lines[i].y1 + "," + lines[i].color + "," + lines[i].end + ";\n";
+  }
+  document.getElementById('save_id').value = save;
+}
+function Load() {
+  var save = document.getElementById('load_id').value;
+  var lines = save.split(";");
+  for (var i = 0; i != lines.length; i++) {
+    var line = lines[i].split(",");
+    mouse.x = parseInt(line[0]);
+    mouse.y = parseInt(line[1]);
+    last_mouse.x = parseInt(line[2]);
+    last_mouse.y = parseInt(line[3]);
+    selected_stroke = line[4];
+    Bresenham();
+    if (line[5] == "true") {
+      canvas.dispatchEvent(new Event("mouseup"));
     }
   }
-  button_clicked = false;
-  
+}
+function SetStroke(stroke) {
+  selected_stroke = stroke;
+}
+
+// Either clicks on buttons or sets up line drawing.
+var stroke_start;
+canvas.addEventListener('mousedown', function(e) {
   context.beginPath();
   context.moveTo(mouse.x, mouse.y);
+  stroke_start = {x: mouse.x, y: mouse.y};
   last_mouse = {x: mouse.x, y: mouse.y};
   canvas.addEventListener('mousemove', Bresenham, false);
 }, false);
@@ -203,24 +307,37 @@ canvas.addEventListener('mousemove', function(e) {
  
 // Adds code elements based on the stroke made between mousedown and mouseup.
 canvas.addEventListener('mouseup', function() {
-  if (button_clicked) return;
-  
   canvas.removeEventListener('mousemove', Bresenham, false);
+  if (lines.length > 0)
+    lines[lines.length-1].end = true;
   
   // Both scope and variable cases will floodfill their enclosed region with
   // a unique region int.
   switch (selected_stroke) {
   case "Scope":  // Creates scope and adds it as a subscope to an existing scope
                  // if it is placed inside an existing scope.
-    region_map[++region_count] = new Scope(region_count);
+    region_map[++region_count] = new Scope(
+      region_count, region_map[regions[mouse.x][mouse.y]]);
     region_map[regions[mouse.x][mouse.y]].AddSubScope(region_map[region_count]);
     FloodFill(mouse.x, mouse.y, {r: region_count*20, g: 0, b: 0, a: 255}, region_count);
     break;
   case "Variable":  // Creates variable and adds it to a scope, or a variable.
-    region_map[++region_count] = new Variable(region_count);
+    region_map[++region_count] = new Variable(
+      region_count, region_map[regions[mouse.x][mouse.y]]);
     region_map[regions[mouse.x][mouse.y]].AddVariable(region_map[region_count]);
     FloodFill(mouse.x, mouse.y, {r: 0, g: region_count*20, b: 0, a: 255}, region_count);
     break;
+  case "Flow":
+    var end_rect = {x: mouse.x-4, y: mouse.y-4, w: 8, h: 8};
+    SetColorRect(end_rect, strokes2["Flow"]);
+    var start_region = regions[stroke_start.x][stroke_start.y];
+    var end_region = regions[mouse.x][mouse.y];
+    if (start_region > region_count || end_region > region_count ) {
+      untied_flows.push({start: stroke_start, end: {x: mouse.x, y: mouse.y}});
+      return;
+    }
+    region_map[start_region].AddTo(region_map[end_region]);
+    region_map[end_region].AddFrom(region_map[start_region], end_rect);
   }
 }, false);
 
@@ -228,7 +345,9 @@ canvas.addEventListener('mouseup', function() {
 var temp_value = "";  // Stores the string the user is typing, until enter is pressed.
 var temp_value_coords;  // Stores the mouse position when user started typing.
 window.onkeydown = function(e) {
+  if (document.activeElement != document.body) return;
   var key = e.keyCode ? e.keyCode : e.which;
+  console.log(key);
   
   if (key == 187) { // =
     // Draws fake_canvas to canvas.
@@ -243,7 +362,8 @@ window.onkeydown = function(e) {
   
   if (key == 189) { // -
     // Iters everything in the code by starting from the [0] global scope.
-    IterScopes(region_map[0], 0);
+    //IterScopes(region_map[0], 0);
+    MakeFunctions();
   }
   
   if (key > 47 && key < 91) { // 0 -> z
@@ -260,6 +380,10 @@ window.onkeydown = function(e) {
     // Sets the value of the variable the mouse was over to temp_value.
     region_map[regions[temp_value_coords.x][temp_value_coords.y]].SetValue(temp_value);
     temp_value = "";
+  }
+  
+  if (key == 191) { // /
+    Save();
   }
 };
 
@@ -298,6 +422,8 @@ function Bresenham() {
   var dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
   var err = (dx>dy ? dx : -dy)/2;
  
+  lines.push({x0: x0, y0: y0, x1: x1, y1: y1, color: selected_stroke, end: false});
+ 
   while (true) {
     SetColor(x0, y0, color);
     fake_canvas[x0][y0] = color;
@@ -315,6 +441,24 @@ function SetColor(x, y, rgba) {
   var new_pixel = new ImageData(data, 1, 1);
   context.putImageData(new_pixel, x, y);
   fake_canvas[x][y] = rgba;
+}
+
+function SetColorRect(rect, rgba) {
+  for (var i = rect.x; i != rect.x + rect.w; i++) {
+    for (var j = rect.y; j != rect.y + rect.h; j++) {
+      if (i == rect.x || j == rect.y || 
+          i == rect.x + rect.w-1 || j == rect.y + rect.h-1) 
+        SetColor(i, j, rgba);  
+    }
+  }
+}
+
+function SetColorRectFill(rect, rgba) {
+  for (var i = rect.x; i != rect.x + rect.w; i++) {
+    for (var j = rect.y; j != rect.y + rect.h; j++) {
+      SetColor(i, j, rgba);  
+    }
+  }
 }
 
 // Calls FloodFillInternal with the entire canvas as rect.

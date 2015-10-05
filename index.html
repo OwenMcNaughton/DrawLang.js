@@ -1,12 +1,46 @@
 <html>
   <head>
+    <style>
+      #save_load {
+				position: absolute;
+			 	top: 120px;
+			 	left: 5px;
+      }
+      
+      #stroke_buttons {
+        position: absolute;
+        top: 10px;
+        font-size: 20px;
+        text-shadow: 2px 2px 3px #777777;
+      }
+    </style>
     <title>DrawLang</title>
   </head>
   <body>
-    <div id="paint_div">
-      <canvas id="paint_canvas"></canvas>
+    <div id='paint_div'>
+      <canvas id='paint_canvas'></canvas>
     </div>
-    <script type="text/javascript" src="js-draw.js"></script>
-    <script type="text/javascript">
-
-    </script>
+    <script type='text/javascript' src='js-draw.js'></script>
+    <script type='text/javascript'></script>
+    
+    <div class='box' id='stroke_buttons'>
+      <form action="">
+        <input type='radio' name ='stroke' id='stroke' onclick='SetStroke("Scope")'>
+          <b><font color='black'>Scope</font></b><br>
+        <input type='radio' name='stroke' id='stroke'  onclick='SetStroke("Flow")'>
+          <b><font color='#FF0000'>Flow</font></b><br>
+        <input type='radio' name='stroke' id='stroke'  onclick='SetStroke("Variable")'>
+          <b><font color='#00FF00'>Variable</font></b><br>
+        <input type='radio' name='stroke' id='stroke' onclick='SetStroke("Comment")'>
+          <b><font color='#FFFF00'>Comment</font></b><br>
+      </form>
+    </div>
+    
+    <div class='box' id='save_load'>
+      <input type='button' value="Save" onclick='Save()'>
+      <input type='text' name='save_name' id='save_id'><br>
+      <input type='button' value='Load' onclick='Load()'> 
+      <input type='text' name='load_name' id='load_id'>
+    </div>
+  </body>   
+</html>
