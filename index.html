@@ -1,17 +1,36 @@
 <html>
   <head>
     <style>
+      #stroke_buttons {
+        position: absolute;
+        top: 10px;
+        font-size: 20px;
+        text-shadow: 2px 2px 3px #777777;
+      }
+      
       #save_load {
 				position: absolute;
 			 	top: 120px;
 			 	left: 5px;
       }
       
-      #stroke_buttons {
+      #save_id {
+        width: 50px;
+      }
+      #load_id {
+        width: 50px;
+      }
+      
+      #code_box {
         position: absolute;
-        top: 10px;
-        font-size: 20px;
-        text-shadow: 2px 2px 3px #777777;
+        top: 170px;
+        left: 5px;
+      }
+      
+      #make_code_id {
+        position: absolute;
+        width: 50px;
+        font-size: 10pt;
       }
     </style>
     <title>DrawLang</title>
@@ -42,5 +61,11 @@
       <input type='button' value='Load' onclick='Load()'> 
       <input type='text' name='load_name' id='load_id'>
     </div>
+    
+    <div class='box' id='code_box'>
+      <input type='button' value="Code" onclick='MakeCode()'>  
+      <input type='text' name='make_code_name' id='make_code_id'><br>
+    </div>
+    
   </body>   
 </html>

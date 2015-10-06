@@ -48,7 +48,7 @@
     this.froms = [];
     this.tos = [];
     // Returns or follow-throughs.
-    this.last_tos = [];
+    this.last_to = -1;
     this.start = -1;
     this.name = IntToWord(region);
   };
@@ -86,7 +86,7 @@
       }
     }
     if (last_to_flag) {
-      this.last_tos.push(to);
+      this.last_to = to;
     } else {
       this.tos.push(to);
     }
@@ -126,12 +126,18 @@
   
   var untied_flows = [];
   
-  var lines = [];
+  var input_log = [];
+}
+
+function MakeCode() {
+  var functions = MakeFunctions();
+  document.getElementById('make_code_id').value = functions;
 }
 
 // Code element creators
 function MakeFunctions() {
   var functions = {};
+  var functions_string = "";
   for (var i = 0; i != region_count; i++) {
     if (region_map[i] instanceof Scope && region_map[i].start != -1) {
       var signature = "function " + region_map[i].name + "(";
@@ -146,14 +152,14 @@ function MakeFunctions() {
         }
       }
       if (args.length > 0) signature = signature.substring(0, signature.length-2);
-      signature += ") {";
+      signature += ") {\n";
 
       var node = region_map[i].start;
-      ComputeFunctionBody(node);
-      
-      console.log(signature);
+      var function_body = ComputeFunctionBody(node);
+      functions_string += signature + function_body + "\n}";
     }
   }
+  return functions_string;
 }
 
 function ComputeFunctionBody(node) {
@@ -173,6 +179,10 @@ function ComputeFunctionBody(node) {
   
   for (var i = 0; i != unlinked_vars.length; i++) {
     body += ComputeVariableDecl(unlinked_vars[i]);
+  }
+  
+  for (var i = 0; i != linked_vars.length; i++) {
+    body += ComputeVariableDecl(linked_vars[i]);
   }
   
   return body;
@@ -255,25 +265,43 @@ function Contains(a, obj) {
 }
 function Save() {
   var save = "";
-  for (var i = 0; i != lines.length; i++) {
-    save += lines[i].x0 + "," + lines[i].y0 + "," + lines[i].x1 + ","; 
-    save += lines[i].y1 + "," + lines[i].color + "," + lines[i].end + ";\n";
+  for (var i = 0; i != input_log.length; i++) {
+    save += input_log[i].type + ",";
+    switch (input_log[i].type) {
+      case "Key":
+        save += input_log[i].keycode + ",";
+        save += input_log[i].mouse_x + "," + input_log[i].mouse_y + ";\n";
+        break;
+      case "Line":
+        save += input_log[i].x0 + "," + input_log[i].y0 + "," + input_log[i].x1 + ","; 
+        save += input_log[i].y1 + "," + input_log[i].color + "," + input_log[i].end + ";\n";
+        break;
+    }
   }
   document.getElementById('save_id').value = save;
 }
 function Load() {
   var save = document.getElementById('load_id').value;
-  var lines = save.split(";");
-  for (var i = 0; i != lines.length; i++) {
-    var line = lines[i].split(",");
-    mouse.x = parseInt(line[0]);
-    mouse.y = parseInt(line[1]);
-    last_mouse.x = parseInt(line[2]);
-    last_mouse.y = parseInt(line[3]);
-    selected_stroke = line[4];
-    Bresenham();
-    if (line[5] == "true") {
-      canvas.dispatchEvent(new Event("mouseup"));
+  var load_input_log = save.split(";");
+  for (var i = 0; i != load_input_log.length; i++) {
+    var line = load_input_log[i].split(",");
+    switch (line[0]) {
+      case "Key":
+        mouse.x = parseInt(line[2]);
+        mouse.y = parseInt(line[3]);
+        HandleKeyboard(parseInt(line[1]));
+        break;
+      case "Line":
+        mouse.x = parseInt(line[1]);
+        mouse.y = parseInt(line[2]);
+        last_mouse.x = parseInt(line[3]);
+        last_mouse.y = parseInt(line[4]);
+        selected_stroke = line[5];
+        Bresenham();
+        if (line[6] == "true") {
+          canvas.dispatchEvent(new Event("mouseup"));
+        }
+        break;
     }
   }
 }
@@ -297,19 +325,13 @@ canvas.addEventListener('mousemove', function(e) {
   last_mouse.y = mouse.y;
   mouse.x = e.pageX - this.offsetLeft;
   mouse.y = e.pageY - this.offsetTop;
-  
-  for (var key in buttons) {
-    if (buttons.hasOwnProperty(key)) {
-      buttons[key].highlight();
-    }
-  }
 }, false);
  
 // Adds code elements based on the stroke made between mousedown and mouseup.
 canvas.addEventListener('mouseup', function() {
   canvas.removeEventListener('mousemove', Bresenham, false);
-  if (lines.length > 0)
-    lines[lines.length-1].end = true;
+  if (input_log.length > 0)
+    input_log[input_log.length-1].end = true;
   
   // Both scope and variable cases will floodfill their enclosed region with
   // a unique region int.
@@ -349,8 +371,12 @@ window.onkeydown = function(e) {
   var key = e.keyCode ? e.keyCode : e.which;
   console.log(key);
   
+  HandleKeyboard(key);
+};
+
+function HandleKeyboard(key) {
   if (key == 187) { // =
-    // Draws fake_canvas to canvas.
+    // Draws fake_canvas to canvas
     for (var i = 0; i != canvas.width; i++) {
       for (var j = 0; j != canvas.height; j++) {
         if (!EqualsColor(fake_canvas[i][j], {r: 255, g: 255, b: 255, a: 255})) {
@@ -368,6 +394,7 @@ window.onkeydown = function(e) {
   
   if (key > 47 && key < 91) { // 0 -> z
     // Types a string onto the canvas, saves the string in temp_value.
+    input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
     if (temp_value == "") {
       temp_value_coords = {x: mouse.x, y: mouse.y};
     }
@@ -378,6 +405,7 @@ window.onkeydown = function(e) {
   
   if (key == 13) { // enter
     // Sets the value of the variable the mouse was over to temp_value.
+    input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
     region_map[regions[temp_value_coords.x][temp_value_coords.y]].SetValue(temp_value);
     temp_value = "";
   }
@@ -385,7 +413,7 @@ window.onkeydown = function(e) {
   if (key == 191) { // /
     Save();
   }
-};
+}
 
 // Recursively searches for and prints values and scopes within a starting scope.
 function IterScopes(scope, depth) {
@@ -422,7 +450,8 @@ function Bresenham() {
   var dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
   var err = (dx>dy ? dx : -dy)/2;
  
-  lines.push({x0: x0, y0: y0, x1: x1, y1: y1, color: selected_stroke, end: false});
+  input_log.push({type: "Line", x0: x0, y0: y0, x1: x1, y1: y1,
+                  color: selected_stroke, end: false});
  
   while (true) {
     SetColor(x0, y0, color);
