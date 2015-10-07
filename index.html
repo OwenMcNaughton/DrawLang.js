@@ -1,71 +1,81 @@
-<html>
-  <head>
-    <style>
-      #stroke_buttons {
-        position: absolute;
-        top: 10px;
-        font-size: 20px;
-        text-shadow: 2px 2px 3px #777777;
-      }
-      
-      #save_load {
-				position: absolute;
-			 	top: 120px;
-			 	left: 5px;
-      }
-      
-      #save_id {
-        width: 50px;
-      }
-      #load_id {
-        width: 50px;
-      }
-      
-      #code_box {
-        position: absolute;
-        top: 170px;
-        left: 5px;
-      }
-      
-      #make_code_id {
-        position: absolute;
-        width: 50px;
-        font-size: 10pt;
-      }
-    </style>
-    <title>DrawLang</title>
-  </head>
-  <body>
-    <div id='paint_div'>
-      <canvas id='paint_canvas'></canvas>
-    </div>
-    <script type='text/javascript' src='js-draw.js'></script>
-    <script type='text/javascript'></script>
+<head>
+  <style>
+    #stroke_buttons {
+      position: absolute;
+      top: 10px;
+      font-size: 20px;
+      text-shadow: 2px 2px 3px #777777;
+    }
     
-    <div class='box' id='stroke_buttons'>
-      <form action="">
-        <input type='radio' name ='stroke' id='stroke' onclick='SetStroke("Scope")'>
-          <b><font color='black'>Scope</font></b><br>
-        <input type='radio' name='stroke' id='stroke'  onclick='SetStroke("Flow")'>
-          <b><font color='#FF0000'>Flow</font></b><br>
-        <input type='radio' name='stroke' id='stroke'  onclick='SetStroke("Variable")'>
-          <b><font color='#00FF00'>Variable</font></b><br>
-        <input type='radio' name='stroke' id='stroke' onclick='SetStroke("Comment")'>
-          <b><font color='#FFFF00'>Comment</font></b><br>
-      </form>
-    </div>
+    #save_load {
+			position: absolute;
+		 	top: 150px;
+		 	left: 5px;
+    }
     
-    <div class='box' id='save_load'>
-      <input type='button' value="Save" onclick='Save()'>
-      <input type='text' name='save_name' id='save_id'><br>
-      <input type='button' value='Load' onclick='Load()'> 
-      <input type='text' name='load_name' id='load_id'>
-    </div>
+    #save_id {
+      width: 50px;
+    }
+    #load_id {
+      width: 50px;
+    }
     
-    <div class='box' id='code_box'>
-      <input type='button' value="Code" onclick='MakeCode()'>  
-      <input type='text' name='make_code_name' id='make_code_id'><br>
-    </div>
+    #code_box {
+      position: absolute;
+      top: 200px;
+      left: 5px;
+    }
     
-  </body>   
-</html>
+    #make_code_id {
+      position: absolute;
+      width: 50px;
+      font-size: 10pt;
+    }
+    
+    #helper_box {
+      position: absolute;
+      top: 250px;
+      left: 5px;
+    }
+  </style>
+  <title>DrawLang</title>
+</head>
+<body>
+  <div id='paint_div'>
+    <canvas id='paint_canvas'></canvas>
+  </div>
+  <script type='text/javascript' src='js-draw.js'></script>
+  <script type='text/javascript'></script>
+  
+  <div class='box' id='stroke_buttons'>
+    <form action="">
+      <input type='radio' name ='stroke' id='stroke' onclick='SetStroke("Scope")'>
+        <b><font color='black'>Scope</font></b><br>
+      <input type='radio' name='stroke' id='stroke' onclick='SetStroke("Flow")'>
+        <b><font color='#FF0000'>Flow</font></b><br>
+      <input type='radio' name='stroke' id='stroke' onclick='SetStroke("Variable")'>
+        <b><font color='#00FF00'>Variable</font></b><br>
+      <input type='radio' name='stroke' id='stroke' onclick='SetStroke("KeySymbol")'>
+        <b><font color='#0000FF'>KeySymbol</font></b><br>
+      <input type='radio' name='stroke' id='stroke' onclick='SetStroke("Comment")'>
+        <b><font color='#FFFF00'>Comment</font></b><br>
+    </form>
+  </div>
+  
+  <div class='box' id='save_load'>
+    <input type='button' value="Save" onclick='Save()'>
+    <input type='text' name='save_name' id='save_id'><br>
+    <input type='button' value='Load' onclick='Load()'> 
+    <input type='text' name='load_name' id='load_id'>
+  </div>
+  
+  <div class='box' id='code_box'>
+    <input type='button' value="Code" onclick='MakeCode()'>  
+    <input type='text' name='make_code_name' id='make_code_id'><br>
+  </div>
+  
+  <div class='box' id='helper_box'>
+    <input type='button' value='Fill' onclick='ShowFill()'>
+  </div>
+  
+</body>

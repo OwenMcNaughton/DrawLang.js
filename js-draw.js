@@ -2,95 +2,137 @@
 
 // Code elements.
 {
-  // Variable type can hold a list of variables, or a value.
-  var Variable = function(region, parent) {
-    this.region = region;
-    this.mother = parent;
-    this.variables = [];
-    this.froms = [];
-    this.tos = [];
-    this.last_to = -1;
-    this.is_atomic = true;
-    this.name = IntToWord(region);
-  };
-  Variable.prototype.AddVariable = function(region_idx) {
-    this.is_atomic = false;
-    this.variables.push(region_idx);
-  };
-  Variable.prototype.SetValue = function(value) {
-    this.is_atomic = true;
-    this.value = value;
-  };
-  Variable.prototype.AddFrom = function(from, link_bounds) {
-    this.froms.push({node: from, bounds: link_bounds});
-  };
-  Variable.prototype.AddTo = function(to) {
-    var last_to_flag = false;
-    for (var i = 0; i != this.froms.length; i++) {
-      if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
-        last_to_flag = true;
-        break;
+  // Variable
+  {
+    // Variable type can hold a list of variables, or a value.
+    var Variable = function(region, parent) {
+      this.region = region;
+      this.mother = parent;
+      this.variables = [];
+      this.froms = [];
+      this.tos = [];
+      this.last_to = -1;
+      this.is_atomic = true;
+      this.name = IntToWord(region);
+    };
+    Variable.prototype.AddVariable = function(region_idx) {
+      this.is_atomic = false;
+      this.variables.push(region_idx);
+    };
+    Variable.prototype.SetValue = function(value) {
+      this.is_atomic = true;
+      this.value = value;
+    };
+    Variable.prototype.AddFrom = function(from, link_bounds) {
+      this.froms.push({node: from, bounds: link_bounds});
+    };
+    Variable.prototype.AddTo = function(to) {
+      var last_to_flag = false;
+      for (var i = 0; i != this.froms.length; i++) {
+        if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
+          last_to_flag = true;
+          break;
+        }
       }
-    }
-    if (last_to_flag) {
-      this.last_to = to;
-    } else {
-      this.tos.push(to);
-    }
-  };
+      if (last_to_flag) {
+        this.last_to = to;
+      } else {
+        this.tos.push(to);
+      }
+    };
+  }
 
-  // Scope type can have sub scopes and variables.
-  var Scope = function(region, parent) {
-    this.region = region;
-    this.mother = parent;
-    this.sub_scopes = [];
-    this.variables = [];
-    this.froms = [];
-    this.tos = [];
-    // Returns or follow-throughs.
-    this.last_to = -1;
-    this.start = -1;
-    this.name = IntToWord(region);
-  };
-  Scope.prototype.AddVariable = function(region_idx) {
-    this.variables.push(region_idx);
-  };
-  Scope.prototype.AddSubScope = function(region_idx) {
-    this.sub_scopes.push(region_idx);
-  };
-  Scope.prototype.AddFrom = function(from, link_bounds) {
-    this.froms.push({node: from, bounds: link_bounds});
-  };
-  Scope.prototype.AddTo = function(to) {
-    var start_flag = false;
-    for (var i = 0; i != this.sub_scopes.length; i++) {
-      if (to == this.sub_scopes[i]) {
-        start_flag = true;
-        this.start = this.sub_scopes[i];
+  // Scope
+  {
+    // Scope type can have sub scopes and variables.
+    var Scope = function(region, parent) {
+      this.region = region;
+      this.mother = parent;
+      this.sub_scopes = [];
+      this.variables = [];
+      this.key_symbols = [];
+      this.froms = [];
+      this.tos = [];
+      // Returns or follow-throughs.
+      this.last_to = -1;
+      this.start = -1;
+      this.name = IntToWord(region);
+    };
+    Scope.prototype.AddVariable = function(region_idx) {
+      this.variables.push(region_idx);
+    };
+    Scope.prototype.AddSubScope = function(region_idx) {
+      this.sub_scopes.push(region_idx);
+    };
+    Scope.prototype.AddKeySymbol = function(region_idx) {
+      this.key_symbols.push(region_idx);
+    };
+    Scope.prototype.AddFrom = function(from, link_bounds) {
+      this.froms.push({node: from, bounds: link_bounds});
+    };
+    Scope.prototype.AddTo = function(to) {
+      var start_flag = false;
+      for (var i = 0; i != this.sub_scopes.length; i++) {
+        if (to == this.sub_scopes[i]) {
+          start_flag = true;
+          this.start = this.sub_scopes[i];
+        }
       }
-    }
-    if (start_flag) return;
-    for (var i = 0; i != this.variables.length; i++) {
-      if (to == this.variables[i]) {
-        start_flag = true;
-        this.start = this.variables[i];
+      if (start_flag) return;
+      for (var i = 0; i != this.variables.length; i++) {
+        if (to == this.variables[i]) {
+          start_flag = true;
+          this.start = this.variables[i];
+        }
       }
-    }
-    if (start_flag) return;
-    
-    var last_to_flag = false;
-    for (var i = 0; i != this.froms.length; i++) {
-      if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
-        last_to_flag = true;
-        break;
+      if (start_flag) return;
+      
+      var last_to_flag = false;
+      for (var i = 0; i != this.froms.length; i++) {
+        if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
+          last_to_flag = true;
+          break;
+        }
       }
-    }
-    if (last_to_flag) {
-      this.last_to = to;
-    } else {
-      this.tos.push(to);
-    }
-  };
+      if (last_to_flag) {
+        this.last_to = to;
+      } else {
+        this.tos.push(to);
+      }
+    };
+  }
+  
+  // KeySymbol
+  {
+    var KeySymbol = function(region, parent) {
+      this.region = region;
+      this.mother = parent;
+      this.type = "";
+      this.froms = [];
+      this.tos = [];
+      this.last_to = -1;
+    };
+    KeySymbol.prototype.SetValue = function(type) {
+      this.type = type;
+    };
+    KeySymbol.prototype.AddFrom = function(from, link_bounds) {
+      this.froms.push({node: from, bounds: link_bounds});
+    };
+    KeySymbol.prototype.AddTo = function(to) {
+      var last_to_flag = false;
+      for (var i = 0; i != this.froms.length; i++) {
+        if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
+          last_to_flag = true;
+          break;
+        }
+      }
+      if (last_to_flag) {
+        this.last_to = to;
+      } else {
+        this.tos.push(to);
+      }
+    };
+  }
 }
 
 // Misc init.
@@ -131,7 +173,9 @@
 
 function MakeCode() {
   var functions = MakeFunctions();
-  document.getElementById('make_code_id').value = functions;
+  var full_code = "zero();\n" + functions;
+  document.getElementById('make_code_id').value = full_code;
+  eval(full_code);
 }
 
 // Code element creators
@@ -139,7 +183,7 @@ function MakeFunctions() {
   var functions = {};
   var functions_string = "";
   for (var i = 0; i != region_count; i++) {
-    if (region_map[i] instanceof Scope && region_map[i].start != -1) {
+    if (region_map[i] instanceof Scope && (region_map[i].start != -1 || i == 0)) {
       var signature = "function " + region_map[i].name + "(";
       var args = [];
       for (var j = 0; j != region_map[i].froms.length; j++) {
@@ -161,7 +205,6 @@ function MakeFunctions() {
   }
   return functions_string;
 }
-
 function ComputeFunctionBody(node) {
   var body = "";
   
@@ -182,21 +225,45 @@ function ComputeFunctionBody(node) {
   }
   
   for (var i = 0; i != linked_vars.length; i++) {
-    body += ComputeVariableDecl(linked_vars[i]);
+    if (linked_vars[i] instanceof Variable) {
+      body += ComputeVariableDecl(linked_vars[i]);
+    } else if (linked_vars[i] instanceof KeySymbol) {
+      body += ComputeKeySymbol(linked_vars[i]);
+    }
   }
   
   return body;
 }
-
 function FollowNodes(node, linked_vars) {
   linked_vars.push(node);
   if (node.last_to == -1) return;
   FollowNodes(node.last_to, linked_vars);
 }
-
 function ComputeVariableDecl(variable) {
-  var decl = "var " + variable.name + " = " + variable.value + ";\n";
-  return decl;
+  if (IsInt(variable.value) || IsFloat(variable.value)) {
+    return "var " + variable.name + " = " + variable.value + "\n;";
+  } else {
+    return "var " + variable.name + " = \"" + variable.value + "\";\n";
+  }
+}
+function ComputeKeySymbol(key_symbol) {
+  var key_string = "";
+  if (key_symbol.type == "") {
+    if (key_symbol.froms.length == 0 && key_symbol.tos.length > 0) {
+      key_symbol.type = "IN";
+    } else if (key_symbol.froms.length > 0 && key_symbol.tos.length == 0) {
+      key_symbol.type = "OUT";
+    }
+  }
+  
+  switch (key_symbol.type) {
+    case "OUT":
+      for (var i = 0; i != key_symbol.froms.length; i++) {
+        key_string += "console.log(" + key_symbol.froms[i].node.name + ");\n";
+      }
+      break;
+  }
+  return key_string;
 }
 
 // Different colors for different code elements.
@@ -207,13 +274,13 @@ function ComputeVariableDecl(variable) {
   strokes["Scope"] = "#000000";
   strokes["Flow"] = "#FF0000";
   strokes["Variable"] = "#00FF00";
-  strokes["Arse"] = "#0000FF";
-  strokes["Comments"] = "#FFFF00";
+  strokes["KeySymbol"] = "#0000FF";
+  strokes["Comment"] = "#FFFF00";
   strokes2["Scope"] = {r: 0, g: 0, b: 0, a: 255};
   strokes2["Flow"] = {r: 255, g: 0, b: 0, a: 255};
   strokes2["Variable"] = {r: 0, g: 255, b: 0, a: 255};
-  strokes2["Arse"] = {r: 0, g: 0, b: 255, a: 255};
-  strokes2["Comments"] = {r: 255, g: 255, b: 0, a: 255};
+  strokes2["KeySymbol"] = {r: 0, g: 0, b: 255, a: 255};
+  strokes2["Comment"] = {r: 255, g: 255, b: 0, a: 255};
 }
 
 // Color helper functions.
@@ -283,6 +350,7 @@ function Save() {
 function Load() {
   var save = document.getElementById('load_id').value;
   var load_input_log = save.split(";");
+  var mouse_down_flag = false;
   for (var i = 0; i != load_input_log.length; i++) {
     var line = load_input_log[i].split(",");
     switch (line[0]) {
@@ -294,12 +362,18 @@ function Load() {
       case "Line":
         mouse.x = parseInt(line[1]);
         mouse.y = parseInt(line[2]);
+        if (mouse_down_flag) {
+          stroke_start = {x: mouse.x, y: mouse.y};
+        }
         last_mouse.x = parseInt(line[3]);
         last_mouse.y = parseInt(line[4]);
         selected_stroke = line[5];
         Bresenham();
         if (line[6] == "true") {
           canvas.dispatchEvent(new Event("mouseup"));
+          mouse_down_flag = true;
+        } else {
+          mouse_down_flag = false; 
         }
         break;
     }
@@ -307,6 +381,21 @@ function Load() {
 }
 function SetStroke(stroke) {
   selected_stroke = stroke;
+}
+function ShowFill() {
+  for (var i = 0; i != canvas.width; i++) {
+    for (var j = 0; j != canvas.height; j++) {
+      if (!EqualsColor(fake_canvas[i][j], {r: 255, g: 255, b: 255, a: 255})) {
+        SetColor(i, j, fake_canvas[i][j]); continue;
+      }
+    }
+  }
+}
+function IsInt(n){
+    return Number(n) === n && n % 1 === 0;
+}
+function IsFloat(n){
+    return n === Number(n) && n % 1 !== 0;
 }
 
 // Either clicks on buttons or sets up line drawing.
@@ -325,6 +414,7 @@ canvas.addEventListener('mousemove', function(e) {
   last_mouse.y = mouse.y;
   mouse.x = e.pageX - this.offsetLeft;
   mouse.y = e.pageY - this.offsetTop;
+  console.log(regions[mouse.x][mouse.y]);
 }, false);
  
 // Adds code elements based on the stroke made between mousedown and mouseup.
@@ -360,6 +450,15 @@ canvas.addEventListener('mouseup', function() {
     }
     region_map[start_region].AddTo(region_map[end_region]);
     region_map[end_region].AddFrom(region_map[start_region], end_rect);
+    break;
+  case "KeySymbol":
+    region_map[++region_count] = new KeySymbol(
+      region_count, region_map[regions[mouse.x][mouse.y]]);
+    if (region_map[regions[mouse.x][mouse.y]] instanceof Scope) {
+      region_map[regions[mouse.x][mouse.y]].AddKeySymbol(region_map[region_count]);
+    }
+    FloodFill(mouse.x, mouse.y, {r: 0, g: 0, b: region_count*20, a: 255}, region_count);
+    break;
   }
 }, false);
 
@@ -375,23 +474,6 @@ window.onkeydown = function(e) {
 };
 
 function HandleKeyboard(key) {
-  if (key == 187) { // =
-    // Draws fake_canvas to canvas
-    for (var i = 0; i != canvas.width; i++) {
-      for (var j = 0; j != canvas.height; j++) {
-        if (!EqualsColor(fake_canvas[i][j], {r: 255, g: 255, b: 255, a: 255})) {
-          SetColor(i, j, fake_canvas[i][j]); continue;
-        }
-      }
-    }
-  }
-  
-  if (key == 189) { // -
-    // Iters everything in the code by starting from the [0] global scope.
-    //IterScopes(region_map[0], 0);
-    MakeFunctions();
-  }
-  
   if (key > 47 && key < 91) { // 0 -> z
     // Types a string onto the canvas, saves the string in temp_value.
     input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
@@ -408,10 +490,6 @@ function HandleKeyboard(key) {
     input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
     region_map[regions[temp_value_coords.x][temp_value_coords.y]].SetValue(temp_value);
     temp_value = "";
-  }
-  
-  if (key == 191) { // /
-    Save();
   }
 }
 
