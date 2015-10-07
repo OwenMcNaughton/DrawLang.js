@@ -23,15 +23,5 @@ Struckthrough things are done.
 - Profit
 
 ## Examples ##
-Hello World:
-![alt text](https://github.com/OwenMcNaughton/blob/DrawLang.js/master/screenshots/helloworld.PNG)
-This translates to 
-```javascript
-function zero();
-
-function zero() {
-  var one = "HELLO WORLD";
-  console.log(one);
-}
-```
+no
 
