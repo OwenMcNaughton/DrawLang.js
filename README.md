@@ -24,7 +24,7 @@ Struckthrough things are done.
 
 ## Examples ##
 Hello World:
-![alt tag](https://raw.github.com/OwenMcNaughton/blob/DrawLang.js/master/screenshots/helloworld.png)
+![alt text](https://github.com/OwenMcNaughton/blob/DrawLang.js/master/screenshots/helloworld.PNG)
 This translates to 
 ```javascript
 function zero();
