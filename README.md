@@ -23,5 +23,15 @@ Struckthrough things are done.
 - Profit
 
 ## Examples ##
-![ScreenShot](https://raw.github.com/owenmcnaughton/DrawLang.js/screenshots/helloworld.png})
+Hello World:
+![ScreenShot](https://raw.github.com/owenmcnaughton/DrawLang.js/master/screenshots/helloworld.png})
+This translates to 
+```javascript
+function zero();
+
+function zero() {
+  var one = "HELLO WORLD";
+  console.log(one);
+}
+```
 
