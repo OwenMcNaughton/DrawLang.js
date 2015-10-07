@@ -26,7 +26,7 @@
     Variable.prototype.AddFrom = function(from, link_bounds) {
       this.froms.push({node: from, bounds: link_bounds});
     };
-    Variable.prototype.AddTo = function(to) {
+    Variable.prototype.AddTo = function(to, link_bounds) {
       var last_to_flag = false;
       for (var i = 0; i != this.froms.length; i++) {
         if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
@@ -37,7 +37,7 @@
       if (last_to_flag) {
         this.last_to = to;
       } else {
-        this.tos.push(to);
+        this.tos.push({node: to, bounds: link_bounds});
       }
     };
   }
@@ -70,7 +70,7 @@
     Scope.prototype.AddFrom = function(from, link_bounds) {
       this.froms.push({node: from, bounds: link_bounds});
     };
-    Scope.prototype.AddTo = function(to) {
+    Scope.prototype.AddTo = function(to, link_bounds) {
       var start_flag = false;
       for (var i = 0; i != this.sub_scopes.length; i++) {
         if (to == this.sub_scopes[i]) {
@@ -97,7 +97,7 @@
       if (last_to_flag) {
         this.last_to = to;
       } else {
-        this.tos.push(to);
+        this.tos.push({node: to, bounds: link_bounds});
       }
     };
   }
@@ -118,7 +118,7 @@
     KeySymbol.prototype.AddFrom = function(from, link_bounds) {
       this.froms.push({node: from, bounds: link_bounds});
     };
-    KeySymbol.prototype.AddTo = function(to) {
+    KeySymbol.prototype.AddTo = function(to, link_bounds) {
       var last_to_flag = false;
       for (var i = 0; i != this.froms.length; i++) {
         if (IntersectsRect(stroke_start, this.froms[i].bounds)) {
@@ -129,7 +129,7 @@
       if (last_to_flag) {
         this.last_to = to;
       } else {
-        this.tos.push(to);
+        this.tos.push({node: to, bounds: link_bounds});
       }
     };
   }
@@ -208,36 +208,24 @@ function MakeFunctions() {
 function ComputeFunctionBody(node) {
   var body = "";
   
-  var linked_vars = [];
-  linked_vars.push(node);
-  FollowNodes(node.last_to, linked_vars);
+  var chain = [];
+  chain.push(node);
+  FollowNodes(node.last_to, chain);
   
-  var unlinked_vars = [];
-  for (var i = 0; i != region_count; i++) {
-    if (region_map[i] instanceof Variable)
-      if (region_map[i].mother == node.mother)
-        if (!Contains(linked_vars, region_map[i]))
-          unlinked_vars.push(region_map[i]);
-  }
-  
-  for (var i = 0; i != unlinked_vars.length; i++) {
-    body += ComputeVariableDecl(unlinked_vars[i]);
-  }
-  
-  for (var i = 0; i != linked_vars.length; i++) {
-    if (linked_vars[i] instanceof Variable) {
-      body += ComputeVariableDecl(linked_vars[i]);
-    } else if (linked_vars[i] instanceof KeySymbol) {
-      body += ComputeKeySymbol(linked_vars[i]);
+  for (var i = 0; i != chain.length; i++) {
+    if (chain[i] instanceof Variable) {
+      body += ComputeVariableDecl(chain[i]);
+    } else if (chain[i] instanceof KeySymbol) {
+      body += ComputeKeySymbol(chain[i]);
     }
   }
   
   return body;
 }
-function FollowNodes(node, linked_vars) {
-  linked_vars.push(node);
+function FollowNodes(node, chain) {
+  chain.push(node);
   if (node.last_to == -1) return;
-  FollowNodes(node.last_to, linked_vars);
+  FollowNodes(node.last_to, chain);
 }
 function ComputeVariableDecl(variable) {
   if (IsInt(variable.value) || IsFloat(variable.value)) {
@@ -262,6 +250,28 @@ function ComputeKeySymbol(key_symbol) {
         key_string += "console.log(" + key_symbol.froms[i].node.name + ");\n";
       }
       break;
+    case "GT":
+    case ">":
+      if (key_symbol.froms.length == 2 && key_symbol.tos.length == 2) {
+        var enter_left, enter_right, exit_false, exit_true;
+        if (key_symbol.froms[0].bounds.x < key_symbol.froms[1].bounds.x) {
+          enter_left = key_symbol.froms[0];
+          enter_right = key_symbol.froms[1];
+        } else {
+          enter_left = key_symbol.froms[1];
+          enter_right = key_symbol.froms[0];
+        }
+      if (key_symbol.tos[0].bounds.x < key_symbol.tos[1].bounds.x) {
+          exit_false = key_symbol.tos[0];
+          exit_true = key_symbol.tos[1];
+        } else {
+          exit_false = key_symbol.tos[1];
+          exit_true = key_symbol.tos[0];
+        }
+      }
+      key_string += "if (" + enter_left.node.name + " > " + enter_right.node.name + ") {\n";
+      key_string += ComputeFunctionBody(exit_true.node) + "} else {\n";
+      key_string += ComputeFunctionBody(exit_false.node) + "}\n";
   }
   return key_string;
 }
@@ -357,7 +367,7 @@ function Load() {
       case "Key":
         mouse.x = parseInt(line[2]);
         mouse.y = parseInt(line[3]);
-        HandleKeyboard(parseInt(line[1]));
+        HandleKeyboard(parseInt(line[1]), false);
         break;
       case "Line":
         mouse.x = parseInt(line[1]);
@@ -388,6 +398,13 @@ function ShowFill() {
       if (!EqualsColor(fake_canvas[i][j], {r: 255, g: 255, b: 255, a: 255})) {
         SetColor(i, j, fake_canvas[i][j]); continue;
       }
+    }
+  }
+  for (var i = 0; i != input_log.length; i++) {
+    if (input_log[i].type == "Key") {
+        mouse.x = input_log[i].mouse_x;
+        mouse.y = input_log[i].mouse_y;
+        HandleKeyboard(input_log[i].keycode, true);
     }
   }
 }
@@ -431,13 +448,15 @@ canvas.addEventListener('mouseup', function() {
     region_map[++region_count] = new Scope(
       region_count, region_map[regions[mouse.x][mouse.y]]);
     region_map[regions[mouse.x][mouse.y]].AddSubScope(region_map[region_count]);
-    FloodFill(mouse.x, mouse.y, {r: region_count*20, g: 0, b: 0, a: 255}, region_count);
+    FloodFill(mouse.x, mouse.y, 
+             {r: region_count*10 + 50, g: 0, b: 0, a: 255}, region_count);
     break;
   case "Variable":  // Creates variable and adds it to a scope, or a variable.
     region_map[++region_count] = new Variable(
       region_count, region_map[regions[mouse.x][mouse.y]]);
     region_map[regions[mouse.x][mouse.y]].AddVariable(region_map[region_count]);
-    FloodFill(mouse.x, mouse.y, {r: 0, g: region_count*20, b: 0, a: 255}, region_count);
+    FloodFill(mouse.x, mouse.y, 
+             {r: 0, g: region_count*10 + 50, b: 0, a: 255}, region_count);
     break;
   case "Flow":
     var end_rect = {x: mouse.x-4, y: mouse.y-4, w: 8, h: 8};
@@ -448,7 +467,7 @@ canvas.addEventListener('mouseup', function() {
       untied_flows.push({start: stroke_start, end: {x: mouse.x, y: mouse.y}});
       return;
     }
-    region_map[start_region].AddTo(region_map[end_region]);
+    region_map[start_region].AddTo(region_map[end_region], end_rect);
     region_map[end_region].AddFrom(region_map[start_region], end_rect);
     break;
   case "KeySymbol":
@@ -468,27 +487,57 @@ var temp_value_coords;  // Stores the mouse position when user started typing.
 window.onkeydown = function(e) {
   if (document.activeElement != document.body) return;
   var key = e.keyCode ? e.keyCode : e.which;
+  if (key != 8) return true;
+
+  HandleBackspace();
+  return false;
+};
+window.onkeypress = function(e) {
+  if (document.activeElement != document.body) return;
+  var key = e.keyCode ? e.keyCode : e.which;
   console.log(key);
-  
-  HandleKeyboard(key);
+
+  HandleKeyboard(key, false);
+  return true;
 };
 
-function HandleKeyboard(key) {
-  if (key > 47 && key < 91 || key == 32) { // 0 -> z
+function HandleBackspace() {
+  if (temp_value == "") return;
+  var found_chars = 0;
+  var iter = input_log.length-1;
+  while (found_chars < temp_value.length) {
+    if (input_log[iter].type == "Key") {
+      input_log.splice(iter, 1);
+      found_chars++;
+    }
+    iter--;
+  }
+  SetColorRectFill(
+    {x: temp_value_coords.x, y: temp_value_coords.y-12,
+     w: context.measureText(temp_value).width, h: 14},
+    {r: 255, g: 255, b: 255, a: 255});
+  temp_value = "";
+}
+
+function HandleKeyboard(key, only_for_show) {
+  if (key != 13) { // enter
     // Types a string onto the canvas, saves the string in temp_value.
-    input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
+    if (!only_for_show)
+      input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
     if (temp_value == "") {
       temp_value_coords = {x: mouse.x, y: mouse.y};
     }
-    temp_value += String.fromCharCode(key);
     context.fillStyle = "#000000";
-    context.fillText(temp_value, temp_value_coords.x, temp_value_coords.y);
-  }
-  
-  if (key == 13) { // enter
+    context.fillText(String.fromCharCode(key), 
+                     temp_value_coords.x + context.measureText(temp_value).width, 
+                     temp_value_coords.y);
+    temp_value += String.fromCharCode(key);
+  } else {
     // Sets the value of the variable the mouse was over to temp_value.
-    input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
-    region_map[regions[temp_value_coords.x][temp_value_coords.y]].SetValue(temp_value);
+    if (!only_for_show) {
+      input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
+      region_map[regions[temp_value_coords.x][temp_value_coords.y]].SetValue(temp_value);
+    }
     temp_value = "";
   }
 }

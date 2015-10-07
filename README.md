@@ -20,7 +20,7 @@ Struckthrough things are done.
 - Draw sprites in code, built in game engine
 - ~~Make it easy to save and share drawings~~
 - ???
-- Profti
+- Profit
 
 ## Examples ##
 Hello World:
