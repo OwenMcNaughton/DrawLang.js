@@ -20,11 +20,11 @@ Struckthrough things are done.
 - Draw sprites in code, built in game engine
 - ~~Make it easy to save and share drawings~~
 - ???
-- Profit
+- Profti
 
 ## Examples ##
 Hello World:
-![ScreenShot](https://raw.github.com/owenmcnaughton/DrawLang.js/master/screenshots/helloworld.png})
+![alt tag](https://raw.github.com/owenmcnaughton/DrawLang.js/master/screenshots/helloworld.png})
 This translates to 
 ```javascript
 function zero();
