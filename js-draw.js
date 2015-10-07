@@ -474,7 +474,7 @@ window.onkeydown = function(e) {
 };
 
 function HandleKeyboard(key) {
-  if (key > 47 && key < 91) { // 0 -> z
+  if (key > 47 && key < 91 || key == 32) { // 0 -> z
     // Types a string onto the canvas, saves the string in temp_value.
     input_log.push({type: "Key", keycode: key, mouse_x: mouse.x, mouse_y: mouse.y});
     if (temp_value == "") {
