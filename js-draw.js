@@ -14,6 +14,7 @@
       this.last_to = -1;
       this.is_atomic = true;
       this.name = IntToWord(region);
+      this.computed = false;
     };
     Variable.prototype.AddVariable = function(region_idx) {
       this.is_atomic = false;
@@ -57,6 +58,7 @@
       this.last_to = -1;
       this.start = -1;
       this.name = IntToWord(region);
+      this.computed = false;
     };
     Scope.prototype.AddVariable = function(region_idx) {
       this.variables.push(region_idx);
@@ -111,6 +113,7 @@
       this.froms = [];
       this.tos = [];
       this.last_to = -1;
+      this.computed = false;
     };
     KeySymbol.prototype.SetValue = function(type) {
       this.type = type;
@@ -171,14 +174,18 @@
   var input_log = [];
 }
 
+// Code element creators
 function MakeCode() {
   var functions = MakeFunctions();
   var full_code = "zero();\n" + functions;
-  document.getElementById('make_code_id').value = full_code;
-  eval(full_code);
+  return full_code;
 }
-
-// Code element creators
+function Run() {
+  eval(MakeCode());
+}
+function ShowCode() {
+  document.getElementById('show_code_id').value = MakeCode();
+}
 function MakeFunctions() {
   var functions = {};
   var functions_string = "";
@@ -208,17 +215,20 @@ function MakeFunctions() {
 function ComputeFunctionBody(node) {
   var body = "";
   
-  var chain = [];
-  chain.push(node);
-  FollowNodes(node.last_to, chain);
+  var main_chain = [];
+  main_chain.push(node);
+  FollowNodes(node.last_to, main_chain);
   
-  for (var i = 0; i != chain.length; i++) {
-    if (chain[i] instanceof Variable) {
-      body += ComputeVariableDecl(chain[i]);
-    } else if (chain[i] instanceof KeySymbol) {
-      body += ComputeKeySymbol(chain[i]);
+  for (var i = 0; i != main_chain.length; i++) {
+    if (main_chain[i] instanceof Variable) {
+      body += ComputeVariableDecl(main_chain[i], main_chain[i-1]);
+    } else if (main_chain[i] instanceof KeySymbol) {
+      body += ComputeKeySymbol(main_chain[i], main_chain[i-1]);
     }
   }
+  
+  var other_chains = [];
+  
   
   return body;
 }
@@ -227,14 +237,72 @@ function FollowNodes(node, chain) {
   if (node.last_to == -1) return;
   FollowNodes(node.last_to, chain);
 }
-function ComputeVariableDecl(variable) {
-  if (IsInt(variable.value) || IsFloat(variable.value)) {
-    return "var " + variable.name + " = " + variable.value + "\n;";
-  } else {
-    return "var " + variable.name + " = \"" + variable.value + "\";\n";
+function ComputeVariableDecl(variable, activator) {
+  var decl = "";
+  for (var i = 0; i != variable.froms.length; i++) {
+    if (variable.froms[i].node instanceof Variable &&
+        !variable.froms[i].node.computed) {
+      decl += ComputeVariableDecl(variable.froms[i].node, activator);
+    }
   }
+  
+  if (!isNaN(variable.value)) {
+    variable.computed = true;
+    return decl += "var " + variable.name + " = " + variable.value + "\n;";
+  }
+  
+  if (variable.value.charAt(0) == '"' && 
+      variable.value.charAt(variable.value.length) == '"') {
+    variable.computed = true;
+    return decl += "var " + variable.name + " = \"" + variable.value + "\";\n";
+  }
+  
+  var ops = ['+', '-', '*', '/', '&&', '||'];
+  var op = false;
+  for (var i = 0; i != ops.length; i++) {
+    if (variable.value.indexOf(ops[i]) != -1) {
+      op = true;
+      break;
+    }
+  }
+  
+  if (!op) {
+    variable.computed = true;
+    return decl += "var " + variable.name + " = \"" + variable.value + "\";\n";
+  }
+  
+  var operators = variable.value.split(" ");
+  decl += "var " + variable.name + " = ";
+  
+  var sorted_froms = [];
+  for (var i = 0; i != variable.froms.length; i++) {
+    var least_x = 9999999;
+    var least = -1;
+    for (var j = 0; j != variable.froms.length; j++) {
+      if (variable.froms[j].bounds.x < least_x) {
+        least_x = variable.froms[j].bounds.x;
+        least = j;
+      }
+    }
+    
+    for (var j = 0; j != variable.froms.length; j++) {
+      console.log(variable.froms[j].node.name + " ");
+    }
+    
+    sorted_froms.push(variable.froms[least]);
+    variable.froms.splice(least, 1);
+  }
+  variable.froms = sorted_froms;
+  
+  for (var i = 0; i != variable.froms.length; i++) {
+    decl += " " + variable.froms[i].node.name + " ";
+    if (i != variable.froms.length -1) decl += operators[i];
+  }
+  decl += ";\n";
+  variable.computed = true;
+  return decl;
 }
-function ComputeKeySymbol(key_symbol) {
+function ComputeKeySymbol(key_symbol, activator) {
   var key_string = "";
   if (key_symbol.type == "") {
     if (key_symbol.froms.length == 0 && key_symbol.tos.length > 0) {
@@ -246,9 +314,8 @@ function ComputeKeySymbol(key_symbol) {
   
   switch (key_symbol.type) {
     case "OUT":
-      for (var i = 0; i != key_symbol.froms.length; i++) {
-        key_string += "console.log(" + key_symbol.froms[i].node.name + ");\n";
-      }
+      key_string += "document.getElementById('output_console_id').value += " +
+                    activator.name + ";\n"
       break;
     case "GT":
     case ">":
@@ -363,6 +430,9 @@ function Load() {
   var mouse_down_flag = false;
   for (var i = 0; i != load_input_log.length; i++) {
     var line = load_input_log[i].split(",");
+    if (line[0].charAt(0) == '\n') {
+      line[0] = line[0].substring(1, line[0].length)
+    }
     switch (line[0]) {
       case "Key":
         mouse.x = parseInt(line[2]);
@@ -402,17 +472,11 @@ function ShowFill() {
   }
   for (var i = 0; i != input_log.length; i++) {
     if (input_log[i].type == "Key") {
-        mouse.x = input_log[i].mouse_x;
-        mouse.y = input_log[i].mouse_y;
-        HandleKeyboard(input_log[i].keycode, true);
+      mouse.x = input_log[i].mouse_x;
+      mouse.y = input_log[i].mouse_y;
+      HandleKeyboard(input_log[i].keycode, true);
     }
   }
-}
-function IsInt(n){
-    return Number(n) === n && n % 1 === 0;
-}
-function IsFloat(n){
-    return n === Number(n) && n % 1 !== 0;
 }
 
 // Either clicks on buttons or sets up line drawing.

@@ -7,29 +7,16 @@
       text-shadow: 2px 2px 3px #777777;
     }
     
-    #save_load {
+    #boxes {
 			position: absolute;
 		 	top: 150px;
 		 	left: 5px;
-    }
-    
-    #save_id {
-      width: 50px;
-    }
-    #load_id {
-      width: 50px;
     }
     
     #code_box {
       position: absolute;
       top: 200px;
       left: 5px;
-    }
-    
-    #make_code_id {
-      position: absolute;
-      width: 50px;
-      font-size: 10pt;
     }
     
     #helper_box {
@@ -62,19 +49,24 @@
     </form>
   </div>
   
-  <div class='box' id='save_load'>
-    <input type='button' value="Save" onclick='Save()'>
-    <input type='text' name='save_name' id='save_id'><br>
-    <input type='button' value='Load' onclick='Load()'> 
-    <input type='text' name='load_name' id='load_id'>
-  </div>
-  
-  <div class='box' id='code_box'>
-    <input type='button' value="Code" onclick='MakeCode()'>  
-    <input type='text' name='make_code_name' id='make_code_id'><br>
-  </div>
-  
-  <div class='box' id='helper_box'>
+  <div class='box' id='boxes'>
+    <input type='button' value='Run' onclick='Run()'><br><br>
+    
+    Input<br>
+    <textarea rows='2' cols='20' id='input_console_id'></textarea><br><br>
+    Output<br>
+    <textarea rows='2' cols='20' id='output_console_id' readonly></textarea><br><br>
+    
+    <input type='button' value='ShowCode' onclick='ShowCode()'><br>
+    <textarea rows='2' cols='20' id='show_code_id' readonly></textarea><br><br>
+    
+    <br><br>
+    
+    <input type='button' value='Save' onclick='Save()'><br>
+    <textarea rows='2' cols='20' id='save_id'></textarea><br><br>
+    <input type='button' value='Load' onclick='Load()'><br>
+    <textarea rows='2' cols='20' id='load_id'></textarea><br><br>
+    
     <input type='button' value='Fill' onclick='ShowFill()'>
   </div>
   
