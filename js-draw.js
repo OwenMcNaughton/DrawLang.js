@@ -205,7 +205,19 @@ function MakeFunctions() {
       if (args.length > 0) signature = signature.substring(0, signature.length-2);
       signature += ") {\n";
 
-      var node = region_map[i].start;
+      var node;
+      if (region_map[i].start != -1) {
+        node = region_map[i].start;
+      } else {
+        for (var j = 0; j != region_map[i].key_symbols.length; j++) {
+          InferKeySymbolType(region_map[i].key_symbols[j]);
+          if (region_map[i].key_symbols[j].type == "IN") {
+            node = region_map[i].key_symbols[j];
+            node.last_to = node.tos[0].node;
+            break;
+          }
+        }
+      }
       var function_body = ComputeFunctionBody(node);
       functions_string += signature + function_body + "\n}";
     }
@@ -227,9 +239,6 @@ function ComputeFunctionBody(node) {
     }
   }
   
-  var other_chains = [];
-  
-  
   return body;
 }
 function FollowNodes(node, chain) {
@@ -238,6 +247,8 @@ function FollowNodes(node, chain) {
   FollowNodes(node.last_to, chain);
 }
 function ComputeVariableDecl(variable, activator) {
+  if (variable.computed) return "";
+  
   var decl = "";
   for (var i = 0; i != variable.froms.length; i++) {
     if (variable.froms[i].node instanceof Variable &&
@@ -254,7 +265,7 @@ function ComputeVariableDecl(variable, activator) {
   if (variable.value.charAt(0) == '"' && 
       variable.value.charAt(variable.value.length) == '"') {
     variable.computed = true;
-    return decl += "var " + variable.name + " = \"" + variable.value + "\";\n";
+    return decl += "var " + variable.name + " = " + variable.value + ";\n";
   }
   
   var ops = ['+', '-', '*', '/', '&&', '||'];
@@ -302,17 +313,25 @@ function ComputeVariableDecl(variable, activator) {
   variable.computed = true;
   return decl;
 }
-function ComputeKeySymbol(key_symbol, activator) {
-  var key_string = "";
+function InferKeySymbolType(key_symbol) {
   if (key_symbol.type == "") {
-    if (key_symbol.froms.length == 0 && key_symbol.tos.length > 0) {
+    if (key_symbol.froms.length == 0 && key_symbol.tos.length == 1) {
       key_symbol.type = "IN";
     } else if (key_symbol.froms.length > 0 && key_symbol.tos.length == 0) {
       key_symbol.type = "OUT";
     }
   }
+}
+function ComputeKeySymbol(key_symbol, activator) {
+  var key_string = "";
+  InferKeySymbolType(key_symbol);
   
   switch (key_symbol.type) {
+    case "IN":
+      key_string += "var " + key_symbol.tos[0].node.name + " = " +
+                    "document.getElementById('input_console_id').value;\n";
+      key_symbol.tos[0].node.computed = true;
+      break;
     case "OUT":
       key_string += "document.getElementById('output_console_id').value += " +
                     activator.name + ";\n"
@@ -479,7 +498,6 @@ function ShowFill() {
   }
 }
 
-// Either clicks on buttons or sets up line drawing.
 var stroke_start;
 canvas.addEventListener('mousedown', function(e) {
   context.beginPath();
